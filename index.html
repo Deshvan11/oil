@@ -1,786 +1,392 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Industrial Lubricant Export Business Guide</title>
-    <style>
-        :root {
-            --primary: #0f172a;
-            --secondary: #2563eb;
-            --accent: #f59e0b;
-            --text: #334155;
-            --light: #f8fafc;
-            --border: #e2e8f0;
-            --success: #16a34a;
-            --danger: #dc2626;
-        }
+import os
+from reportlab.lib.pagesizes import letter
+from reportlab.lib import colors
+from reportlab.platypus import (
+    SimpleDocTemplate, Paragraph, Spacer, Table, 
+    TableStyle, KeepTogether, HRFlowable
+)
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.pdfgen import canvas
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+class NumberedCanvas(canvas.Canvas):
+    """
+    Two-pass canvas to dynamically calculate total page count 
+    and draw consistent headers and footers to protect margins.
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._saved_page_states = []
 
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            line-height: 1.6;
-            color: var(--text);
-            background-color: #f1f5f9;
-        }
+    def showPage(self):
+        self._saved_page_states.append(dict(self.__dict__))
+        self._startPage()
 
-        /* Sidebar Navigation */
-        .sidebar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            height: 100vh;
-            width: 280px;
-            background-color: var(--primary);
-            color: white;
-            padding: 2rem 1rem;
-            overflow-y: auto;
-            z-index: 100;
-        }
+    def save(self):
+        num_pages = len(self._saved_page_states)
+        for state in self._saved_page_states:
+            self.__dict__.update(state)
+            self.draw_page_decorations(num_pages)
+            super().showPage()
+        super().save()
 
-        .sidebar h2 {
-            font-size: 1.25rem;
-            color: var(--accent);
-            margin-bottom: 1.5rem;
-            padding-bottom: 0.5rem;
-            border-bottom: 1px solid #334155;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-
-        .sidebar ul {
-            list-style: none;
-        }
-
-        .sidebar li {
-            margin-bottom: 0.5rem;
-        }
-
-        .sidebar a {
-            color: #94a3b8;
-            text-decoration: none;
-            display: block;
-            padding: 0.5rem 0.75rem;
-            border-radius: 0.375rem;
-            font-size: 0.9rem;
-            transition: all 0.2s;
-        }
-
-        .sidebar a:hover {
-            background-color: #1e293b;
-            color: white;
-            padding-left: 1.25rem;
-        }
-
-        /* Main Content Layout */
-        .main-content {
-            margin-left: 280px;
-            padding: 3rem;
-            max-width: 1200px;
-        }
-
-        header {
-            background: linear-gradient(135deg, var(--primary), #1e293b);
-            color: white;
-            padding: 3rem;
-            border-radius: 0.75rem;
-            margin-bottom: 3rem;
-            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-        }
-
-        header h1 {
-            font-size: 2.5rem;
-            margin-bottom: 0.5rem;
-            color: white;
-        }
-
-        header p {
-            color: #94a3b8;
-            font-size: 1.1rem;
-        }
-
-        .badge-container {
-            margin-top: 1.5rem;
-            display: flex;
-            gap: 0.5rem;
-            flex-wrap: wrap;
-        }
-
-        .badge {
-            background-color: rgba(37, 99, 235, 0.2);
-            color: #60a5fa;
-            padding: 0.25rem 0.75rem;
-            border-radius: 9999px;
-            font-size: 0.8rem;
-            font-weight: 600;
-            border: 1px solid rgba(37, 99, 235, 0.3);
-        }
-
-        /* Sections */
-        section {
-            background-color: white;
-            padding: 2.5rem;
-            border-radius: 0.75rem;
-            margin-bottom: 2.5rem;
-            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
-            border: 1px solid var(--border);
-            scroll-margin-top: 2rem;
-        }
-
-        h2 {
-            color: var(--primary);
-            font-size: 1.75rem;
-            margin-bottom: 1.5rem;
-            border-left: 5px solid var(--secondary);
-            padding-left: 0.75rem;
-        }
-
-        h3 {
-            color: #1e293b;
-            font-size: 1.25rem;
-            margin: 1.5rem 0 0.75rem 0;
-        }
-
-        p {
-            margin-bottom: 1rem;
-            color: #475569;
-        }
-
-        /* Lists */
-        ul, ol {
-            margin-left: 1.5rem;
-            margin-bottom: 1rem;
-            color: #475569;
-        }
-
-        li {
-            margin-bottom: 0.35rem;
-        }
-
-        /* Tables */
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 1.5rem 0;
-            font-size: 0.95rem;
-        }
-
-        th, td {
-            padding: 0.75rem 1rem;
-            text-align: left;
-            border-bottom: 1px solid var(--border);
-        }
-
-        th {
-            background-color: #f8fafc;
-            color: var(--primary);
-            font-weight: 600;
-        }
-
-        tr:hover {
-            background-color: #f8fafc;
-        }
-
-        /* Cards and Structural Blocks */
-        .grid-2 {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 1.5rem;
-            margin: 1.5rem 0;
-        }
-
-        .card {
-            background-color: var(--light);
-            border: 1px solid var(--border);
-            border-radius: 0.5rem;
-            padding: 1.5rem;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-
-        .card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
-        }
-
-        .alert {
-            padding: 1rem 1.25rem;
-            border-radius: 0.5rem;
-            margin: 1.5rem 0;
-            border-left: 4px solid;
-        }
-
-        .alert-danger {
-            background-color: #fef2f2;
-            border-color: var(--danger);
-            color: #991b1b;
-        }
-
-        .alert-danger h4 {
-            color: #991b1b;
-            margin-bottom: 0.25rem;
-        }
-
-        .alert-info {
-            background-color: #eff6ff;
-            border-color: var(--secondary);
-            color: #1e40af;
-        }
-
-        .alert-info h4 {
-            color: #1e40af;
-            margin-bottom: 0.25rem;
-        }
-
-        /* Flow Diagrams Placeholder */
-        .diagram {
-            background-color: #f8fafc;
-            border: 2px dashed #cbd5e1;
-            border-radius: 0.5rem;
-            padding: 2rem;
-            text-align: center;
-            margin: 1.5rem 0;
-            font-family: monospace;
-            color: #64748b;
-        }
-
-        .step-container {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-            margin: 1.5rem 0;
-        }
-
-        .step {
-            display: flex;
-            align-items: flex-start;
-            gap: 1rem;
-            background: var(--light);
-            padding: 1rem;
-            border-radius: 0.5rem;
-            border: 1px solid var(--border);
-        }
-
-        .step-number {
-            background: var(--secondary);
-            color: white;
-            font-weight: bold;
-            width: 28px;
-            height: 28px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-            font-size: 0.85rem;
-        }
-
-        /* Responsive Design */
-        @media (max-width: 768px) {
-            .sidebar {
-                display: none;
-            }
-            .main-content {
-                margin-left: 0;
-                padding: 1.5rem;
-            }
-            header {
-                padding: 1.5rem;
-            }
-            header h1 {
-                font-size: 1.75rem;
-            }
-        }
-    </style>
-</head>
-<body>
-
-    <nav class="sidebar">
-        <h2>Export Guide</h2>
-        <ul>
-            <li><a href="#part1">1. Understanding Lubricants</a></li>
-            <li><a href="#part2">2. Sourcing to Sales Flow</a></li>
-            <li><a href="#part3">3. Licenses & Documents</a></li>
-            <li><a href="#part4">4. Shipping & Incoterms</a></li>
-            <li><a href="#part5">5. Financial Engineering</a></li>
-            <li><a href="#part6">6. International Payments</a></li>
-            <li><a href="#part7">7. Risk Mitigation</a></li>
-            <li><a href="#part8">8. Starter Product Line</a></li>
-            <li><a href="#part9">9. Competitor Landscapes</a></li>
-            <li><a href="#part10">10. Strategic Pricing</a></li>
-            <li><a href="#part11">11. Distribution Blueprint</a></li>
-            <li><a href="#part12">12. Phased Roadmap</a></li>
-            <li><a href="#part13">13. Core Success Factors</a></li>
-            <li><a href="#part14">14. Final Recommendations</a></li>
-        </ul>
-    </nav>
-
-    <main class="main-content">
-        <header>
-            <h1>Industrial Lubricant Export Operations</h1>
-            <p>Cross-Border Distribution Model: Mumbai, India to South Africa</p>
-            <div class="badge-container">
-                <span class="badge">B2B Supply Chain</span>
-                <span class="badge">Commodity Pricing Strategy</span>
-                <span class="badge">DGFT / SARS Compliance</span>
-                <span class="badge">GS Caltex & Kixx Portfolio</span>
-            </div>
-        </header>
-
-        <section id="part1">
-            <h2>1. Understanding the Industry & Product Categories</h2>
-            <p>Industrial lubricants are highly engineered chemical compositions designed to minimize friction, heat generation, mechanical wear, and micro-welding inside machinery. In high-output sectors like mining, logistics, and heavy manufacturing, lubricating fluids are treated as business-critical components because mechanical downtime can cost thousands of dollars per operational hour.</p>
+    def draw_page_decorations(self, page_count):
+        self.saveState()
+        self.setFont("Helvetica", 8)
+        self.setFillColor(colors.HexColor("#64748b"))
+        
+        # Header (Skipped on First Page)
+        if self._pageNumber > 1:
+            self.drawString(54, 755, "CONFIDENTIAL // LUBRICANT EXPORT CORRIDOR REALITY MODEL")
+            self.setStrokeColor(colors.HexColor("#cbd5e1"))
+            self.setLineWidth(0.5)
+            self.line(54, 747, 558, 747)
             
-            <div class="grid-2">
-                <div class="card">
-                    <h3>Heavy-Duty Diesel Engine Oils</h3>
-                    <p>Engine oils operate under high thermal load. They clean out soot, neutralize corrosive combustion acids, and maintain structural viscosity thickness.</p>
-                    <ul>
-                        <li><strong>Common Specs:</strong> 15W40, 10W30, API CK-4, API CI-4+</li>
-                        <li><strong>Primary Demand:</strong> Long-haul trucking lines, mining heavy haulers, diesel generator plants.</li>
-                    </ul>
-                </div>
-                <div class="card">
-                    <h3>Industrial Hydraulic Oils</h3>
-                    <p>Non-compressible energy transfer mediums utilized inside high-pressure hydraulic pumps, cylinders, and valves.</p>
-                    <ul>
-                        <li><strong>Common Specs:</strong> Anti-Wear (AW) 32, AW 46, AW 68</li>
-                        <li><strong>Primary Demand:</strong> Earthmovers, industrial production line presses, cranes, forklifts.</li>
-                    </ul>
-                </div>
-                <div class="card">
-                    <h3>Industrial Gear Oils</h3>
-                    <p>Formulated to handle extreme pressure (EP) variables and high loads without tearing the protective chemical lubricating barrier.</p>
-                    <ul>
-                        <li><strong>Common Specs:</strong> EP 220, EP 320, API GL-5</li>
-                        <li><strong>Primary Demand:</strong> Rock crushing mills, manufacturing gearboxes, processing plant drives.</li>
-                    </ul>
-                </div>
-                <div class="card">
-                    <h3>High-Performance Greases</h3>
-                    <p>Semi-solid structural formulations composed of a soap matrix base containing lubricating base oils to treat high friction joints.</p>
-                    <ul>
-                        <li><strong>Common Specs:</strong> EP 2, MP 3 Advance (Lithium Complex)</li>
-                        <li><strong>Primary Demand:</strong> Mechanical bearings, pin/bushing points, shaker screens, conveyors.</li>
-                    </ul>
-                </div>
-            </div>
+        # Footer (All Pages)
+        self.setStrokeColor(colors.HexColor("#e2e8f0"))
+        self.setLineWidth(0.5)
+        self.line(54, 45, 558, 45)
+        
+        page_str = f"Page {self._pageNumber} of {page_count}"
+        self.drawRightString(558, 32, page_str)
+        self.drawString(54, 32, "Financial Analysis Model: India to South Africa (Durban Port Hub)")
+        self.restoreState()
 
-            <div class="grid-2">
-                <div class="card">
-                    <h3>Industrial Compressor Oils</h3>
-                    <p>High-flashpoint thermal stability oils engineered specifically to optimize rotary screw and reciprocating industrial air systems.</p>
-                </div>
-                <div class="card">
-                    <h3>Specialized Food-Grade Lubricants</h3>
-                    <p>Highly refined non-toxic formulations meeting strict safety profiles for machinery processing products for consumer consumption.</p>
-                    <ul>
-                        <li><strong>Required Certifications:</strong> NSF H1 Registration, ISO 21469</li>
-                    </ul>
-                </div>
-            </div>
-        </section>
 
-        <section id="part2">
-            <h2>2. Comprehensive Commercial Trade Flow</h2>
-            <p>Establishing an international trade channel requires synchronizing diverse processes. Below is the operational step-by-step corridor map from initial purchase to ultimate point-of-sale deployment.</p>
-            
-            <div class="step-container">
-                <div class="step">
-                    <div class="step-number">1</div>
-                    <div>
-                        <strong>Product Sourcing (India Base):</strong> Procurement from manufacturing points or authorized logistics terminals. Key local reference points include GS Caltex India Private Limited at the Avvashya CCI Logistics Park in Panvel, Maharashtra, which provides seamless connectivity to export points.
-                    </div>
-                </div>
-                <div class="step">
-                    <div class="step-number">2</div>
-                    <div>
-                        <strong>Commercial Price Negotiation:</strong> Locking in structured pricing models based on Ex-Works (EXW) or Free-On-Board (FOB) terms, factoring in Minimum Order Quantities (MOQ) and container optimization dynamics.
-                    </div>
-                </div>
-                <div class="step">
-                    <div class="step-number">3</div>
-                    <div>
-                        <strong>Export Document Configuration:</strong> Gathering international compliance certificates, material safety profiles, laboratory analysis sheets, and structural packaging bills to meet cross-border enforcement demands.
-                    </div>
-                </div>
-                <div class="step">
-                    <div class="step-number">4</div>
-                    <div>
-                        <strong>Container Load Optimization:</strong> Safe packing into 20ft freight containers, which are preferred for dense, high-mass liquid weight commodities. Standard packing formats focus on 210L liquid steel drums and 180kg heavy grease drums.
-                    </div>
-                </div>
-                <div class="step">
-                    <div class="step-number">5</div>
-                    <div>
-                        <strong>Indian Customs Gateways:</strong> Moving freight through the Jawaharlal Nehru Port Authority (JNPA/Nhava Sheva) or Mumbai Port, finalizing currency bonds and export tracking clearances.
-                    </div>
-                </div>
-                <div class="step">
-                    <div class="step-number">6</div>
-                    <div>
-                        <strong>Maritime Sea Voyage:</strong> High-sea ocean transit routing from India directly to South African deepwater ports, primary targets being Durban, Cape Town, or Port Elizabeth, with transit durations ranging between 15 and 35 days.
-                    </div>
-                </div>
-                <div class="step">
-                    <div class="step-number">7</div>
-                    <div>
-                        <strong>SARS Import Processing:</strong> Offloading cargo into South African Revenue Service (SARS) Customs check-points to verify landing weights, settle value-added taxes, pay import processing duties, and process environmental authority permissions.
-                    </div>
-                </div>
-                <div class="step">
-                    <div class="step-number">8</div>
-                    <div>
-                        <strong>Regional Freight Depot Warehousing:</strong> Storing products in secure industrial storage facilities within logistics zones like Gauteng (Johannesburg tracking hub), KwaZulu-Natal, or the Western Cape.
-                    </div>
-                </div>
-                <div class="step">
-                    <div class="step-number">9</div>
-                    <div>
-                        <strong>B2B Distribution & Sales:</strong> Final truck transport delivery to long-haul logistics yards, active agricultural cooperatives, and mining complexes.
-                    </div>
-                </div>
-            </div>
-        </section>
+def build_financial_report(filename="Lubricant_Export_Business_Model.pdf"):
+    # Target grid settings matching Letter dimensions inside static borders
+    doc = SimpleDocTemplate(
+        filename,
+        pagesize=letter,
+        leftMargin=54,
+        rightMargin=54,
+        topMargin=72,
+        bottomMargin=72
+    )
 
-        <section id="part3">
-            <h2>3. Cross-Border Licensing & Document Framework</h2>
-            <p>To ensure cargo does not face administrative delays or seizures at the port of origin or destination, specific compliance documentation must be prepared and kept active on both sides of the trade corridor.</p>
-            
-            <div class="grid-2">
-                <div class="card">
-                    <h3>Indian Regulatory Mandates</h3>
-                    <ul>
-                        <li><strong>Importer Exporter Code (IEC):</strong> The primary identification license issued by the Directorate General of Foreign Trade (DGFT) required for any cross-border entity.</li>
-                        <li><strong>GST Registration & LUT (Letter of Undertaking):</strong> Allows the exporter to process shipments at 0% GST, preventing cash from being tied up in government refund cycles.</li>
-                        <li><strong>AD Code (Authorized Dealer) Registration:</strong> Ensures the local bank code is registered at the port's EDI customs station to process incoming foreign currency settlements.</li>
-                        <li><strong>RCMC (Registration-cum-Membership):</strong> Secured via relevant trade councils to access export incentives and verify industry status.</li>
-                    </ul>
-                </div>
-                <div class="card">
-                    <h3>South African Import Mandates</h3>
-                    <ul>
-                        <li><strong>SARS Customs Importer Registration:</strong> A core necessity required under the South African Revenue Service to act as an importer of record.</li>
-                        <li><strong>ITAC Import Permit:</strong> Issued through the International Trade Administration Commission for specialized petroleum products and chemical compounds.</li>
-                        <li><strong>Value Added Tax (VAT) Account:</strong> Set up to manage the standard local 15% VAT processing requirements at the point of import entry.</li>
-                    </ul>
-                </div>
-            </div>
+    styles = getSampleStyleSheet()
+    
+    # Palette definition Archetype: Corporate Tech Slate
+    primary_color = colors.HexColor("#0f172a")    # Deep Navy Slate
+    secondary_color = colors.HexColor("#1e3a8a")  # Deep Blue Accent
+    neutral_dark = colors.HexColor("#334155")     # Body Charcoal
+    accent_color = colors.HexColor("#b45309")     # Amber Warning Text
+    bg_light = colors.HexColor("#f8fafc")         # Soft White Panel
+    
+    # Custom Typographic Scale
+    title_style = ParagraphStyle(
+        'DocTitle',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=24,
+        leading=28,
+        textColor=primary_color,
+        spaceAfter=4
+    )
+    
+    subtitle_style = ParagraphStyle(
+        'DocSubtitle',
+        parent=styles['Normal'],
+        fontName='Helvetica',
+        fontSize=12,
+        leading=16,
+        textColor=colors.HexColor("#475569"),
+        spaceAfter=15
+    )
+    
+    h1_style = ParagraphStyle(
+        'Heading1_Custom',
+        parent=styles['Heading1'],
+        fontName='Helvetica-Bold',
+        fontSize=14,
+        leading=18,
+        textColor=primary_color,
+        spaceBefore=14,
+        spaceAfter=8,
+        keepWithNext=True
+    )
+    
+    body_style = ParagraphStyle(
+        'Body_Custom',
+        parent=styles['BodyText'],
+        fontName='Helvetica',
+        fontSize=10,
+        leading=14,
+        textColor=neutral_dark,
+        spaceAfter=6
+    )
+    
+    bold_body_style = ParagraphStyle(
+        'Body_Bold_Custom',
+        parent=body_style,
+        fontName='Helvetica-Bold'
+    )
 
-            <h3>Critical Product Quality Documentation</h3>
-            <ul>
-                <li><strong>MSDS (Material Safety Data Sheet):</strong> The standard global 16-section document covering flammability thresholds, chemical compositions, and transport safety profiles. Essential for booking sea freight slots.</li>
-                <li><strong>TDS (Technical Data Sheet):</strong> Outlines physical characteristics such as kinematic viscosity, pour points, and flash stability. Industrial maintenance engineers require this before approving changes to their supply chains.</li>
-                <li><strong>COA (Certificate of Analysis):</strong> Batch-specific verification from laboratory testing proving that the specific chemical shipment matches its target design specifications.</li>
-                <li><strong>OEM (Original Equipment Manufacturer) Certifications:</strong> Formal approval verifications from engine builders (e.g., Volvo, Cummins, Mercedes-Benz, Caterpillar) or agricultural equipment designers (John Deere J20C, New Holland). Industrial operations will often void their equipment warranties if uncertified oil is introduced.</li>
-            </ul>
-        </section>
+    table_header_style = ParagraphStyle(
+        'TableHeader',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=9,
+        leading=12,
+        textColor=colors.white
+    )
+    
+    table_cell_style = ParagraphStyle(
+        'TableCell',
+        parent=styles['Normal'],
+        fontName='Helvetica',
+        fontSize=9,
+        leading=13,
+        textColor=neutral_dark
+    )
+    
+    table_cell_bold = ParagraphStyle(
+        'TableCellBold',
+        parent=table_cell_style,
+        fontName='Helvetica-Bold',
+        textColor=primary_color
+    )
 
-        <section id="part4">
-            <h2>4. Maritime Freight Logistics & Incoterms</h2>
-            <p>Selecting the correct Incoterm determines the exact point where transport costs and financial risk shift from the seller in India to the buyer in South Africa.</p>
-            
-            <table>
-                <thead>
-                    <tr>
-                        <th>Incoterm</th>
-                        <th>Seller Obligations (India)</th>
-                        <th>Buyer Obligations (South Africa)</th>
-                        <th>Risk Transition Point</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td><strong>EXW</strong> (Ex Works)</td>
-                        <td>Make goods ready at warehouse loading dock.</td>
-                        <td>Inland transit, export clearance, ocean freight, duties.</td>
-                        <td>At supplier's warehouse floor.</td>
-                    </tr>
-                    <tr>
-                        <td><strong>FOB</strong> (Free On Board)</td>
-                        <td>Inland transit, port handling, export clearance, ship loading.</td>
-                        <td>International ocean freight, destination clearance, local delivery.</td>
-                        <td>Once container crosses the ship's rail.</td>
-                    </tr>
-                    <tr>
-                        <td><strong>CIF</strong> (Cost, Insurance & Freight)</td>
-                        <td>Local transit, customs clearance, ocean freight cost, maritime insurance.</td>
-                        <td>Port offloading, customs import clearance, duties, local delivery.</td>
-                        <td>At port of origin (though costs run to destination port).</td>
-                    </tr>
-                    <tr>
-                        <td><strong>DDP</strong> (Delivered Duty Paid)</td>
-                        <td>All costs, export/import clearances, duties, local delivery to destination door.</td>
-                        <td>Receive goods at final specified warehouse location.</td>
-                        <td>At buyer's warehouse receiving bay.</td>
-                    </tr>
-                </tbody>
-            </table>
+    callout_style = ParagraphStyle(
+        'CalloutText',
+        parent=styles['Normal'],
+        fontName='Helvetica-Oblique',
+        fontSize=10,
+        leading=15,
+        textColor=colors.HexColor("#7f1d1d")
+    )
 
-            <h3>Container Configuration Metrics</h3>
-            <p>Lubricant freight operations heavily rely on standard 20ft containers because liquid cargo reaches legal weight limits before filling the actual physical container space. A standard 20ft container can balance approximately 80 to 94 standard 210L steel drums, maximizing the legal cargo mass of roughly 21.5 metric tons.</p>
-        </section>
+    story = []
 
-        <section id="part5">
-            <h2>5. Financial Engineering & Profit Calculations</h2>
-            <p>Protecting profitability requires tracking every variable cost along the corridor. The business must build a granular cost model that scales up from the ex-works invoice to the final delivered cost:</p>
-            
-            <div class="diagram">
-                Landed Cost = Ex-Works Cost + Local Freight + Port Fees + Ocean Freight + Insurance + Customs Duties + SARS Port Costs + Local Depot Freight + Storage Fees
-            </div>
+    # Document Header Band
+    story.append(Paragraph("Industrial Lubricant Export Business Guide", title_style))
+    story.append(Paragraph("Financial Optimization Model: Mumbai, IN &rarr; Durban, ZA Corridor", subtitle_style))
+    story.append(HRFlowable(width="100%", thickness=2, color=primary_color, spaceAfter=15))
 
-            <h3>Financial Tracking Model Matrix</h3>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Product Identity</th>
-                        <th>Acquisition Baseline (Mumbai Depot)</th>
-                        <th>South Africa Target List (Wholesale)</th>
-                        <th>Operational Policy Directives</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td><strong>Kixx Hydro AW 68</strong><br>(210L Liquid Drum)</td>
-                        <td>₹159.00 / Liter</td>
-                        <td>R 7,106.00 / Drum<br><small>(Includes 15% VAT)</small></td>
-                        <td><span style="color: var(--danger); font-weight: 600;">Market Floor Protection:</span> Wholesale pricing must never fall below R28.00 / Liter (excl. VAT) to prevent undercutting market value.</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Kixx MP 3 Advance</strong><br>(180KG Heavy Grease)</td>
-                        <td>₹243.00 / Kilogram</td>
-                        <td>R 8,200.00 / Drum<br><small>(Target list rate)</small></td>
-                        <td><span style="color: var(--secondary); font-weight: 600;">Pricing Privacy Protocol:</span> Competitor pricing for 180kg grease units is rarely published openly in SA. Direct, customized quotes are used to maintain a hidden margin advantage.</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Kixx HDX Euro CK-4</strong><br>(210L Liquid Drum)</td>
-                        <td>₹186.00 / Liter</td>
-                        <td>Custom B2B Quotation Matrix</td>
-                        <td><span style="color: var(--success); font-weight: 600;">Volume Trigger:</span> Accounts purchasing &gt;20 drums/month bypass standard lists. Quotes must factor in variable inland truck transport to remote mining sites.</td>
-                    </tr>
-                </tbody>
-            </table>
+    # Context / Framework Overview
+    intro_txt = (
+        "<b>Core Venture Concept:</b> This model evaluates the financial mechanics of establishing an international "
+        "industrial lubricant distribution operation. Sourcing distributor-level baseline inventories from manufacturing clusters "
+        "in Mumbai (JNPT Node), the model calculates true landed thresholds within South Africa to safely project gross "
+        "vs net structural margins. The target metric assumes optimization across a standard <b>20FT Ocean Freight Container</b>."
+    )
+    story.append(Paragraph(intro_txt, body_style))
+    story.append(Spacer(1, 10))
 
-            <div class="alert alert-info">
-                <h4>Core Volume Profit Dynamics</h4>
-                <p>Sustainable profitability does not rely on irregular, individual drum retail sales. Real, long-term profit relies on high-volume, recurring industrial contracts, multi-year logistics fleet supply agreements, and mining consumption contracts.</p>
-            </div>
-        </section>
+    # 1. Product Split Panel
+    story.append(Paragraph("1. Core Freight Volume Distribution (Product Split)", h1_style))
+    story.append(Paragraph("Maximum legal weight allocation across a balanced 20FT container frame:", body_style))
+    
+    split_data = [
+        [Paragraph("Product Nomenclature / Specification", table_header_style), Paragraph("Volumetric Allocation (Liters)", table_header_style), Paragraph("Percentage Split", table_header_style)],
+        [Paragraph("Hydraulic Oil AW68", table_cell_style), Paragraph("4,300 L", table_cell_style), Paragraph("20.0%", table_cell_style)],
+        [Paragraph("Engine Oil 15W40 (High TBN Diesel Fleet)", table_cell_style), Paragraph("4,300 L", table_cell_style), Paragraph("20.0%", table_cell_style)],
+        [Paragraph("Transmission Oil 80W90 Heavy Extreme Pressure", table_cell_style), Paragraph("4,300 L", table_cell_style), Paragraph("20.0%", table_cell_style)],
+        [Paragraph("EP2 Industrial Grease (Liquid Volumetric Equivalent)", table_cell_style), Paragraph("4,300 L Equiv.", table_cell_style), Paragraph("20.0%", table_cell_style)],
+        [Paragraph("MP3 High-Temp Grease (Liquid Volumetric Equivalent)", table_cell_style), Paragraph("4,300 L Equiv.", table_cell_style), Paragraph("20.0%", table_cell_style)],
+        [Paragraph("<b>TOTAL CONTAINER VOLUME CAPACITY</b>", table_cell_bold), Paragraph("<b>21,500 L</b>", table_cell_bold), Paragraph("<b>100.0%</b>", table_cell_bold)]
+    ]
+    
+    t_split = Table(split_data, colWidths=[254, 150, 100])
+    t_split.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), primary_color),
+        ('ALIGN', (1,0), (-1,-1), 'LEFT'),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
+        ('ROWBACKGROUNDS', (0,1), (-1,-2), [colors.white, bg_light]),
+        ('BACKGROUND', (0,-1), (-1,-1), colors.HexColor("#e2e8f0")),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#cbd5e1")),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+        ('TOPPADDING', (0,0), (-1,-1), 6),
+    ]))
+    story.append(t_split)
+    story.append(Spacer(1, 12))
 
-        <section id="part6">
-            <h2>6. International Payments & Capital Protection</h2>
-            <p>International commodity trade involves long lead times and high capital exposure, making payment risk management essential. Unsecured credit terms can lead to severe cash flow challenges.</p>
-            
-            <div class="grid-2">
-                <div class="card" style="border-top: 4px solid var(--success);">
-                    <h3>Letter of Credit (LC) - Highly Secure</h3>
-                    <p>The gold standard for international trade protection. The buyer's bank issues a formal guarantee to your brother's Indian bank, promising to release full payment once the ocean bills of lading, clean inspection certificates, and customs invoices are physically submitted. This protects your brother from non-payment and assures the buyer that the goods have been shipped.</p>
-                </div>
-                <div class="card" style="border-top: 4px solid var(--accent);">
-                    <h3>Telegraphic Transfer (TT) Bank Structuring</h3>
-                    <p>A multi-stage framework commonly used to maintain working capital liquidity:</p>
-                    <div style="font-family: monospace; font-size: 0.85rem; background: #fff; padding: 0.5rem; border-radius: 0.25rem; border: 1px solid var(--border);">
-                        30% Advance Deposit (Triggers Production/Loading) + 70% Balance Paid Upon Document Review (Copy of Bill of Lading)
-                    </div>
-                </div>
-            </div>
-            
-            <p style="margin-top: 1rem;"><strong>Documentary Collection (DP / CAD):</strong> Shipping documents are routed through banking channels. The buyer's bank holds the title documents until the buyer settles the invoice. This reduces payment risk but still leaves the exporter exposed to return freight costs if the buyer rejects the cargo at the port of entry.</p>
-        </section>
+    # 2 & 3. Sourcing and Valuation Metrics
+    story.append(Paragraph("2 & 3. Sourcing Valuations (Ex-Works Mumbai Node)", h1_style))
+    
+    sourcing_data = [
+        [Paragraph("Product Description", table_header_style), Paragraph("Procurement Rate", table_header_style), Paragraph("Allocated Vol.", table_header_style), Paragraph("Total Purchase Value (INR)", table_header_style)],
+        [Paragraph("Hydraulic Oil AW68", table_cell_style), Paragraph("₹115.00 / L", table_cell_style), Paragraph("4,300 L", table_cell_style), Paragraph("Template:TotalCost1", table_cell_style)],
+        [Paragraph("Engine Oil 15W40", table_cell_style), Paragraph("₹155.00 / L", table_cell_style), Paragraph("4,300 L", table_cell_style), Paragraph("Template:TotalCost2", table_cell_style)],
+        [Paragraph("Transmission Oil 80W90", table_cell_style), Paragraph("₹175.00 / L", table_cell_style), Paragraph("4,300 L", table_cell_style), Paragraph("Template:TotalCost3", table_cell_style)],
+        [Paragraph("EP2 Grease", table_cell_style), Paragraph("₹190.00 / L Eq", table_cell_style), Paragraph("4,300 L", table_cell_style), Paragraph("Template:TotalCost4", table_cell_style)],
+        [Paragraph("MP3 Grease", table_cell_style), Paragraph("₹170.00 / L Eq", table_cell_style), Paragraph("4,300 L", table_cell_style), Paragraph("Template:TotalCost5", table_cell_style)],
+        [Paragraph("<b>TOTAL PRODUCT PROCUREMENT FUNDING</b>", table_cell_bold), Paragraph("", table_cell_style), Paragraph("", table_cell_style), Paragraph("<b>₹34,61,500</b>", table_cell_bold)]
+    ]
+    # Direct cell values over the template injection
+    sourcing_data[1][3] = Paragraph("₹4,94,500", table_cell_style)
+    sourcing_data[2][3] = Paragraph("₹6,66,500", table_cell_style)
+    sourcing_data[3][3] = Paragraph("₹7,52,500", table_cell_style)
+    sourcing_data[4][3] = Paragraph("₹8,17,000", table_cell_style)
+    sourcing_data[5][3] = Paragraph("₹7,31,000", table_cell_style)
 
-        <section id="part7">
-            <h2>7. Risk Management & Scam Prevention</h2>
-            <p>Operating a cross-border trade route between India and Africa offers high growth potential but requires robust operational safeguards to mitigate real-world risks.</p>
-            
-            <div class="alert alert-danger">
-                <h4>1. Fraudulent Buyers & Tenders</h4>
-                <p><strong>The Risk:</strong> Ghost entities may mimic official corporate headers or government procurement channels, requesting urgent high-volume lubricant orders or upfront fees for "tender registration."</p>
-                <p><strong>The Safeguard:</strong> Cross-verify corporate registrations, physical warehouse addresses, active corporate VAT numbers, and employee profiles on LinkedIn. Never pay upfront fees to register for corporate or government procurement systems.</p>
-            </div>
+    t_source = Table(sourcing_data, colWidths=[184, 110, 90, 120])
+    t_source.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), secondary_color),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#cbd5e1")),
+        ('ROWBACKGROUNDS', (0,1), (-1,-2), [colors.white, bg_light]),
+        ('BACKGROUND', (0,-1), (-1,-1), colors.HexColor("#e2e8f0")),
+        ('SPAN', (0,-1), (2,-1)),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 5),
+        ('TOPPADDING', (0,0), (-1,-1), 5),
+    ]))
+    story.append(t_source)
+    story.append(Spacer(1, 14))
 
-            <div class="card">
-                <h3>2. Demurrage and Detention Penalties</h3>
-                <p><strong>The Risk:</strong> If customs clearance takes too long at South African ports due to missing paperwork or delayed import permits, shipping lines charge escalating daily penalties for holding containers inside the port (Demurrage) or keeping equipment too long outside the terminal (Detention).</p>
-                <p><strong>The Safeguard:</strong> Ensure all documentation is pre-cleared by your customs broker at least 7 days before the vessel arrives at the destination port.</p>
-            </div>
+    # 4, 5, 6, 7. Shipping Logistics Matrix Breakdown
+    story.append(Paragraph("4, 5, 6 & 7. Cross-Border Freight & Customs Infrastructure Costs", h1_style))
+    
+    logistics_data = [
+        [Paragraph("Logistics Phase / Expense Component", table_header_style), Paragraph("Primary Charge Specifications", table_header_style), Paragraph("Amount Value (INR)", table_header_style)],
+        [Paragraph("<b>India Gateway Charges</b>", table_cell_bold), Paragraph("Stuffing (₹20k), Trucking to JNPT (₹25k), Customs Entry (₹18k), Terminal Handling (₹35k), Documentation (₹10k), Maritime Insurance (₹18k)", table_cell_style), Paragraph("₹1,26,000", table_cell_style)],
+        [Paragraph("<b>Ocean Freight Passage</b>", table_cell_bold), Paragraph("Deepwater Sea Freight Corridor: Nhava Sheva Port &rarr; Durban Terminal (Approx USD 1,700)", table_cell_style), Paragraph("₹1,500,000", table_cell_style)], # Standard base parsing correction handled via plain script input text below
+        [Paragraph("<b>South Africa Port Infrastructure</b>", table_cell_bold), Paragraph("Durban Landing Tariffs (₹55k), Clearing Agent Fees (₹22k), Import Docs (₹10k), Inland Haulage (₹65k), Offloading Handlers (₹18k), Depot Storage Maintenance (₹35k)", table_cell_style), Paragraph("₹2,05,000", table_cell_style)],
+        [Paragraph("<b>SARS Border Protection</b>", table_cell_bold), Paragraph("Estimated Customs Tariff Entry Structure & Value Added Tax (VAT Base Calculations Framework)", table_cell_style), Paragraph("₹6,75,000", table_cell_style)]
+    ]
+    # Direct assignment correction for visual tracking consistency
+    logistics_data[2][2] = Paragraph("₹1,50,000", table_cell_style)
 
-            <div class="card" style="margin-top: 1.5rem;">
-                <h3>3. Currency Volatility Protection</h3>
-                <p><strong>The Risk:</strong> Product acquisition costs are linked to the Indian Rupee (INR) and US Dollar (USD), while downstream sales revenues are generated in South African Rand (ZAR). A sudden drop in the value of the Rand can erode your profit margins overnight.</p>
-                <p><strong>The Safeguard:</strong> Implement a <strong>Quarterly Price Review Mechanism</strong>. Your brother's contracts should include an exchange rate adjustment clause: if the ZAR/USD exchange rate moves by more than 5% within any 90-day window, base wholesale price charts must be updated automatically.</p>
-            </div>
-        </section>
+    t_logistics = Table(logistics_data, colWidths=[134, 250, 120])
+    t_logistics.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), primary_color),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#cbd5e1")),
+        ('VALIGN', (0,0), (-1,-1), 'TOP'),
+        ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.white, bg_light]),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+        ('TOPPADDING', (0,0), (-1,-1), 6),
+    ]))
+    story.append(t_logistics)
+    story.append(Spacer(1, 14))
 
-        <section id="part8">
-            <h2>8. Core Launch Portfolio Strategy</h2>
-            <p>To optimize early capital allocation and simplify customs management, avoid launching an extensive, multi-tier product catalog immediately. Focus initial shipments on high-demand, high-frequency industrial fluids.</p>
-            
-            <div class="grid-2">
-                <div class="card">
-                    <h4>1. Industrial Hydraulic Fluids (AW 46 / AW 68)</h4>
-                    <p>These fluids are universally compatible across diverse machinery lines and feature high consumption rates due to regular system maintenance flushes. This helps ensure consistent initial volume through your supply chain.</p>
-                </div>
-                <div class="card">
-                    <h4>2. Heavy Diesel Fleet Engine Oils (15W40 CI-4+)</h4>
-                    <p>This grade serves as the core workhorse fluid for commercial transport networks and heavy machinery operations. It has high market acceptance and a quick inventory turnover cycle.</p>
-                </div>
-                <div class="card">
-                    <h4>3. Premium Heavy Load Greases (EP 2 / MP 3 Advance)</h4>
-                    <p>Greases offer higher profit margins per unit compared to liquid bulk oils. They have an extended shelf life and face less aggressive local price competition, helping to support early business revenues.</p>
-                </div>
-            </div>
-        </section>
+    # 8 & 9. Aggregated True Landed Metrics Block
+    story.append(Paragraph("8 & 9. Consolidated True Landed Cost Structure", h1_style))
+    
+    landed_summary = [
+        [Paragraph("Cost Component Module", table_header_style), Paragraph("Aggregated Valuation (INR)", table_header_style)],
+        [Paragraph("Primary Wholesale Base Product Assets", table_cell_style), Paragraph("₹34,61,500", table_cell_style)],
+        [Paragraph("Origin Export Processing Operations (India Side)", table_cell_style), Paragraph("₹1,26,000", table_cell_style)],
+        [Paragraph("Maritime Shipping Liner Lane (Mumbai to Durban)", table_cell_style), Paragraph("₹1,50,000", table_cell_style)],
+        [Paragraph("Destination Harbor Clearance & Drayage (South Africa)", table_cell_style), Paragraph("₹2,05,000", table_cell_style)],
+        [Paragraph("SARS Boundary Customs Duty Fees + Inward VAT Buffer", table_cell_style), Paragraph("₹6,75,000", table_cell_style)],
+        [Paragraph("<b>AGGREGATED TOTAL LANDED CAPITAL REQUIRED</b>", table_cell_bold), Paragraph("<b>ExtraBold:₹45,17,500</b>", table_cell_bold)]
+    ]
+    landed_summary[6][1] = Paragraph("<b> these numbers: ₹45,17,500</b>", table_cell_bold) # Force baseline correction
+    landed_summary[6][1] = Paragraph("<b>₹45,17,500</b>", table_cell_bold)
 
-        <section id="part9">
-            <h2>9. Competitive Landscape Analysis</h2>
-            <p>The South African lubricant market features established global brands. Developing an effective market-entry strategy requires assessing your competitors' market positioning:</p>
-            
-            <table>
-                <thead>
-                    <tr>
-                        <th>Brand Group</th>
-                        <th>Established Strength Profiles</th>
-                        <th>Strategic Counter-Positioning Vector</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td><strong>Shell / Mobil</strong></td>
-                        <td>Dominant positions in heavy industrial contracts and corporate mining supply networks.</td>
-                        <td>Focus on personalized B2B service, faster local delivery, and agile, custom volume-tier pricing models.</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Castrol</strong></td>
-                        <td>Strong brand equity in retail consumer markets and retail automotive networks.</td>
-                        <td>Avoid entry into consumer retail spaces; focus exclusively on commercial transport fleets and high-volume B2B accounts.</td>
-                    </tr>
-                    <tr>
-                        <td><strong>TotalEnergies</strong></td>
-                        <td>Extensive pan-African distribution network and established fuel station infrastructure.</td>
-                        <td>Target regional industrial hubs and independent operations that are often underserved by massive oil conglomerates.</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Fuchs</strong></td>
-                        <td>Highly specialized positions in complex, custom industrial and manufacturing formulations.</td>
-                        <td>Compete on high-volume, cost-effective core products (such as standardized hydraulic and diesel engine oils).</td>
-                    </tr>
-                </tbody>
-            </table>
-        </section>
+    t_landed = Table(landed_summary, colWidths=[354, 150])
+    t_landed.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), primary_color),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#cbd5e1")),
+        ('ROWBACKGROUNDS', (0,1), (-1,-2), [colors.white, bg_light]),
+        ('BACKGROUND', (0,-1), (-1,-1), colors.HexColor("#fed7aa")), # Light Amber Alert Highlight for primary metrics box
+        ('BOTTOMPADDING', (0,0), (-1,-1), 5),
+        ('TOPPADDING', (0,0), (-1,-1), 5),
+    ]))
+    story.append(t_landed)
+    
+    # Unit Baseline Callout
+    unit_calc_box = (
+        "<font color='#1e3a8a'><b>CRITICAL CORE OPERATIONAL METRIC &rarr; TRUE LANDED PER-LITER COST:</b></font><br/>"
+        "$$\\text{{True Landed Cost per Liter}} = \\frac{{\\text{{Total Cumulative Expenditures Value}}}}{{\\text{{Total Container Liters Shipped Capability}}}} = "
+        "\\frac{{\\text{{₹45,17,500}}}}{{\\text{{21,500 Liters}}}} = \\mathbf{{\\text{{₹210.00 / Liter}}}}$$ "
+        "<br/><i>Every single downstream wholesale pricing model matrix and localized distributor negotiation structure depends entirely on this baseline metric.</i>"
+    )
+    story.append(Spacer(1, 6))
+    story.append(Paragraph(unit_calc_box, body_style))
+    story.append(Spacer(1, 14))
 
-        <section id="part10">
-            <h2>10. Strategic B2B Pricing Methodology</h2>
-            <p>Avoid trying to win customers solely by offering the lowest possible price. In industrial manufacturing and mining sectors, extremely cheap lubricants often trigger quality concerns among maintenance engineers.</p>
-            
-            <div class="grid-2">
-                <div class="card">
-                    <h3>Value-Driven Competitiveness</h3>
-                    <p>Align your selling prices close to established market averages, but build your competitive advantage around extended service features: reliable logistics, immediate stock availability at local depots, and flexible payment terms for verified accounts.</p>
-                </div>
-                <div class="card">
-                    <h3>Technical Value Extensions</h3>
-                    <p>Bundle high-volume oil deliveries with technical support programs, such as regular oil analysis and machine condition monitoring. Helping clients minimize equipment wear creates strong customer retention and reduces price sensitivity.</p>
-                </div>
-            </div>
-        </section>
+    # Keep layout metrics clean across explicit page breaks if necessary
+    # 10, 11, 12 & 13. Revenue, Margin and Yield Performance Tables
+    yield_elements = []
+    yield_elements.append(Paragraph("10, 11, 12 & 13. Target Market Revenue Yield & Margin Performance", h1_style))
+    
+    yield_data = [
+        [Paragraph("Product Class", table_header_style), Paragraph("SA Sell Price / L", table_header_style), Paragraph("Gross Profit / L", table_header_style), Paragraph("Container Gross Yield", table_header_style), Paragraph("Yield / 210L Barrel", table_header_style)],
+        [Paragraph("Hydraulic Oil AW68", table_cell_style), Paragraph("₹300.00", table_cell_style), Paragraph("₹90.00", table_cell_style), Paragraph("Template:Gross1", table_cell_style), Paragraph("Template:Barrel1", table_cell_style)],
+        [Paragraph("Engine Oil 15W40", table_cell_style), Paragraph("₹360.00", table_cell_style), Paragraph("₹150.00", table_cell_style), Paragraph("Template:Gross2", table_cell_style), Paragraph("Template:Barrel2", table_cell_style)],
+        [Paragraph("Transmission Oil 80W90", table_cell_style), Paragraph("₹400.00", table_cell_style), Paragraph("₹190.00", table_cell_style), Paragraph("Template:Gross3", table_cell_style), Paragraph("Template:Barrel3", table_cell_style)],
+        [Paragraph("EP2 Grease Line", table_cell_style), Paragraph("₹460.00", table_cell_style), Paragraph("₹250.00", table_cell_style), Paragraph("Template:Gross4", table_cell_style), Paragraph("Template:Barrel4", table_cell_style)],
+        [Paragraph("MP3 Grease Line", table_cell_style), Paragraph("₹420.00", table_cell_style), Paragraph("₹210.00", table_cell_style), Paragraph("Template:Gross5", table_cell_style), Paragraph("Template:Barrel5", table_cell_style)],
+        [Paragraph("<b>CUMULATIVE FREIGHT RETURN YIELD</b>", table_cell_bold), Paragraph("", table_cell_style), Paragraph("", table_cell_style), Paragraph("<b>₹38,27,000</b>", table_cell_bold), Paragraph("", table_cell_style)]
+    ]
+    # Explicit cell text rendering
+    yield_data[1][3] = Paragraph("打破:₹3,87,000", table_cell_style); yield_data[1][3] = Paragraph("₹3,87,000", table_cell_style); yield_data[1][4] = Paragraph("₹18,900", table_cell_style)
+    yield_data[2][3] = Paragraph("₹6,45,000", table_cell_style); yield_data[2][4] = Paragraph("₹31,500", table_cell_style)
+    yield_data[3][3] = Paragraph("₹8,17,000", table_cell_style); yield_data[3][4] = Paragraph("₹39,900", table_cell_style)
+    yield_data[4][3] = Paragraph("₹10,75,000", table_cell_style); yield_data[4][4] = Paragraph("₹52,500", table_cell_style)
+    yield_data[5][3] = Paragraph("₹9,03,000", table_cell_style); yield_data[5][4] = Paragraph("₹44,100", table_cell_style)
 
-        <section id="part11">
-            <h2>11. Cross-Border Joint Distribution Blueprint</h2>
-            <p>To minimize overhead and scale efficiently, the business should utilize a decentralized distribution model that clearly separates export logistics from local fulfillment operations.</p>
-            
-            <div class="grid-2">
-                <div class="card" style="border-left: 4px solid var(--primary);">
-                    <h3>India Sourcing Hub (Exporter)</h3>
-                    <ul>
-                        <li>Manages volume supply agreements with blending plants and manufacturing partners in Mumbai.</li>
-                        <li>Coordinates export gate processing, port customs compliance, and international shipping logistics.</li>
-                        <li>Ensures correct packaging and weight validation before containers cross the export gate.</li>
-                    </ul>
-                </div>
-                <div class="card" style="border-left: 4px solid var(--secondary);">
-                    <h3>South Africa Depot Hub (Distributor)</h3>
-                    <ul>
-                        <li>Operates regional warehouses and coordinates local truck delivery networks.</li>
-                        <li>Deploys field sales representatives to secure commercial accounts and mining contracts.</li>
-                        <li>Provides technical product support and field fluid-testing services.</li>
-                    </ul>
-                </div>
-            </div>
-        </section>
+    t_yield = Table(yield_data, colWidths=[144, 90, 85, 95, 90])
+    t_yield.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), secondary_color),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#cbd5e1")),
+        ('ROWBACKGROUNDS', (0,1), (-1,-2), [colors.white, bg_light]),
+        ('BACKGROUND', (0,-1), (-1,-1), colors.HexColor("#bbf7d0")), # Soft green yield indicator background
+        ('SPAN', (0,-1), (2,-1)),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 5),
+        ('TOPPADDING', (0,0), (-1,-1), 5),
+    ]))
+    yield_elements.append(t_yield)
+    story.append(KeepTogether(yield_elements))
+    story.append(Spacer(1, 14))
 
-        <section id="part12">
-            <h2>12. Phased Business Roadmap</h2>
-            <p>Avoid attempting to deploy full-scale operations immediately. Follow a structured, phased approach to manage risk and protect capital:</p>
-            
-            <div class="step-container">
-                <div class="step">
-                    <div class="step-number">P1</div>
-                    <div>
-                        <strong>Research & Sourcing Foundations (Months 1–2):</strong> Set up your trading entity in India and secure your Import Exporter Code (IEC) from the DGFT. File your Letter of Undertaking (LUT) on the GST portal, register your bank AD Code at Nhava Sheva port, and finalize your supply agreements with manufacturing partners in Mumbai.
-                    </div>
-                </div>
-                <div class="step">
-                    <div class="step-number">P2</div>
-                    <div>
-                        <strong>Market Setup & Import Compliance (Months 3–5):</strong> Register your import entity with SARS in South Africa and secure your ITAC petroleum import permit. Set up your initial third-party logistics (3PL) warehousing partnership in a major hub like Durban or Johannesburg, and compile all necessary technical product sheets (MSDS, TDS, and OEM certificates).
-                    </div>
-                </div>
-                <div class="step">
-                    <div class="step-number">P3</div>
-                    <div>
-                        <strong>Pilot Shipment Execution (Months 6–7):</strong> Ship a single 20ft container packed with your core launch products: Hydraulic AW 46/68, Diesel 15W40, and Lithium EP 2 Grease. Test your entire logistics chain, covering export clearance at JNPT, ocean transport, SARS customs clearance, and delivery to your regional warehouse. Distribute initial product samples to your target B2B accounts to secure your first long-term sales contracts.
-                    </div>
-                </div>
-                <div class="step">
-                    <div class="step-number">P4</div>
-                    <div>
-                        <strong>Network Expansion & Contract Management (Months 8–10):</strong> Transition from spot-market sales to steady, recurring B2B supply agreements with logistics companies and mining operations. Implement custom volume pricing for clients purchasing more than 20 drums per month.
-                    </div>
-                </div>
-                <div class="step">
-                    <div class="step-number">P5</div>
-                    <div>
-                        <strong>Scale & Product Expansion (Months 11+):</strong> Introduce high-margin specialized lubricants, including synthetic gear oils, compressor fluids, and NSF H1 certified food-grade oils, into your established distribution channels. Expand your sales reach into adjacent industrial manufacturing sectors and regional infrastructure projects.
-                    </div>
-                </div>
-            </div>
-        </section>
+    # 14 & 15. Operational Risk Realities and Expected Net Margins
+    risk_elements = []
+    risk_elements.append(Paragraph("14 & 15. Operational Variance Realities & Projected Net Margins", h1_style))
+    risk_elements.append(Paragraph(
+        "<b>CRITICAL AUDIT INTERPRETATION:</b> The numbers shown above represent strictly <b>GROSS VALUE SURPLUSES</b>. "
+        "They do not account for secondary down-stream corporate overhead leaks. To establish a realistic operational framework, "
+        "your brother must subtract localized operational costs prior to assessing real net equity distributions.",
+        body_style
+    ))
+    
+    # Red Flag Warning Alert Callout Box
+    warning_text = (
+        "<h4><b>⚠️ FINANCIAL RISK WARNING</b></h4>"
+        "Gross container calculations must actively absorb: Local warehousing facility leases, distribution staff payroll, "
+        "inland fuel distribution logistics, marketing costs, localized business regulatory registration fees, "
+        "<b>Foreign Exchange (ZAR/USD/INR) market volatility</b>, and transactional payment delays or direct client default events."
+    )
+    risk_elements.append(Paragraph(warning_text, ParagraphStyle('Warn', parent=callout_style, fontName='Helvetica-Bold', textColor=colors.HexColor("#991b1b"), backColor=colors.HexColor("#fef2f2"), borderColor=colors.HexColor("#fca5a5"), borderWidth=1, borderPadding=10, spaceBefore=4, spaceAfter=8)))
+    
+    # Net Margins Table
+    margin_data = [
+        [Paragraph("Operational Evolution Milestone", table_header_style), Paragraph("Realistic Expected Net Margin Range", table_header_style)],
+        [Paragraph("<b>Early-Stage Entry Infrastructure</b> (Market penetration operations)", table_cell_style), Paragraph("8.0% &mdash; 15.0% Net Yield Margin", table_cell_style)],
+        [Paragraph("<b>Stable Regional Terminal Operations</b> (Contract optimization layer)", table_cell_style), Paragraph("15.0% &mdash; 22.0% Net Yield Margin", table_cell_style)],
+        [Paragraph("<b>Large-Scale Enterprise Contract Distribution</b> (Fully optimized network)", table_cell_style), Paragraph("20.0% &mdash; 30.0% Net Yield Margin", table_cell_style)]
+    ]
+    t_margin = Table(margin_data, colWidths=[314, 190])
+    t_margin.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), primary_color),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#cbd5e1")),
+        ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.white, bg_light]),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 5),
+        ('TOPPADDING', (0,0), (-1,-1), 5),
+    ]))
+    risk_elements.append(t_margin)
+    story.append(KeepTogether(risk_elements))
+    story.append(Spacer(1, 14))
 
-        <section id="part13">
-            <h2>13. Core Business Success Metrics</h2>
-            <p>Long-term growth and operational stability depend on maintaining strict standards across several key performance areas:</p>
-            
-            <div class="grid-2">
-                <div class="card">
-                    <strong>Operational Reliability:</strong> Industrial operations cannot afford supply disruptions. Maintaining reliable, safety-stock inventory levels at your regional fulfillment warehouses is essential to retaining premium B2B accounts.
-                    <br><br>
-                    <strong>OEM Specification Compliance:</strong> Ensure all imported product lines carry active, verifiable original equipment manufacturer certifications. This is a mandatory requirement to access enterprise-level mining and heavy industrial logistics tenders.
-                </div>
-                <div class="card">
-                    <strong>Granular Logistics Control:</strong> Carefully manage your shipping schedules and container optimization to prevent high port demurrage and detention fees from eroding your profit margins.
-                    <br><br>
-                    <strong>Payment Discipline:</strong> Stick to strict payment risk mitigation structures (such as letters of credit or multi-stage telegraphic transfer terms) to protect your working capital from bad debt and extended collection cycles.
-                </div>
-            </div>
-        </section>
+    # 16. Strategic Optimization Summary
+    insight_elements = []
+    insight_elements.append(Paragraph("16. Master Strategic Commercial Insight", h1_style))
+    final_insight = (
+        "<b>Where the Real Value Lies:</b> Sustainable, scalable profitability in this sector cannot be achieved via "
+        "unstructured, one-off spot-market container transactions. The core foundation of this enterprise model lies in "
+        "securing <b>recurring industrial distribution agreements</b>.<br/><br/>"
+        "• <b>Mining Operations</b> clear and re-order hydraulic assets on fixed monthly maintenance schedules.<br/>"
+        "• <b>Infrastructure Construction Equipment</b> operates under continuous operational wear cycles.<br/>"
+        "• <b>Agricultural Cooperatives</b> consume high volumes seasonally but maintain highly predictable demand models.<br/>"
+        "• <b>High-Pressure Hydraulic Systems</b> experience continuous mechanical micro-leaks, requiring regular fluid top-offs.<br/><br/>"
+        "<b>Strategic Execution Recommendation:</b> Prioritize building automated client re-order pipelines to stabilize cargo frequency "
+        "movements and insulate working capital against localized pricing shifts."
+    )
+    insight_elements.append(Paragraph(final_insight, ParagraphStyle('Final', parent=body_style, backColor=bg_light, borderColor=colors.HexColor("#cbd5e1"), borderWidth=1, borderPadding=12)))
+    story.append(KeepTogether(insight_elements))
 
-        <section id="part14">
-            <h2>14. Strategic Recommendations & Professional Assessment</h2>
-            <div class="alert alert-info">
-                <h4>Strategic Market Position Recommendation</h4>
-                <p>Your brother should focus his sales efforts exclusively on the <strong>Industrial B2B Market Segment</strong>, prioritizing heavy mining machinery operations, long-haul commercial logistics networks, construction fleets, and regional agricultural cooperatives. He should completely avoid entering the low-margin, highly fragmented consumer automotive retail sector during the initial launch phases.</p>
-            </div>
+    # Render Document Pipeline
+    doc.build(story, canvasmaker=NumberedCanvas)
 
-            <h3>Final Operational Summary</h3>
-            <p>The shared logistics documents and market intelligence profiles demonstrate a viable commercial opportunity. The primary driver of long-term business success will not simply be the sourcing of liquid lubricants; it will depend on execution consistency, robust international payment risk mitigation, reliable port logistics handling, and establishing strong relationships with key enterprise B2B maintenance buyers.</p>
-            
-            <p>For official regulatory updates and procedural guidelines, ensure your team continuously reviews resources from the <strong>Directorate General of Foreign Trade (DGFT India)</strong>, the <strong>South African Revenue Service (SARS Customs)</strong>, and local industrial trade authorities.</p>
-        </section>
-    </main>
-
-</body>
-</html>
+if __name__ == "__main__":
+    build_financial_report()
